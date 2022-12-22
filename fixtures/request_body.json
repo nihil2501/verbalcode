@@ -1,0 +1,22 @@
+{
+  "Body": "test",
+  "SmsMessageSid": "SMf00fb5cda0e09ac32dda3604cc04f79c",
+  "ReferralNumMedia": "0",
+  "MessageSid": "SMf00fb5cda0e09ac32dda3604cc04f79c",
+  "FromZip": "21075",
+  "NumSegments": "1",
+  "AccountSid": "AC81a505287474c92eabcc065e299aaa86",
+  "NumMedia": "0",
+  "From": "+14108025604",
+  "SmsStatus": "received",
+  "FromState": "MD",
+  "ToState": "IL",
+  "ToZip": "60035",
+  "FromCountry": "US",
+  "ToCountry": "US",
+  "FromCity": "CATONSVILLE",
+  "ApiVersion": "2010-04-01",
+  "ToCity": "HIGHLAND PARK",
+  "To": "+18477801391",
+  "SmsSid": "SMf00fb5cda0e09ac32dda3604cc04f79c"
+}
