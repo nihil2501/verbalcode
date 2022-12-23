@@ -1,0 +1,23 @@
+lru? - probably not--constant expiry instead--what about edit -> extension?
+edits - probably not
+CRUD
+constraints?
+	max codes per owner?
+
+responder
+
+exchange
+	perform
+
+code
+	owner
+	key
+	message
+	time
+
+other ideas -
+	temporary address for 2way comms
+
+
+
+Does Twilio rate limit inbound SMS per-phone-number? Or could a user, for example, decide to spam SMS inbound to my Twilio phone number and application? Is this configurable within Twilio? I am wondering if this is a feature of the platform so that I can avoid needing to build that logic into my application in order to prevent some potential abuse of my service.
