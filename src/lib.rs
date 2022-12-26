@@ -20,7 +20,6 @@ impl HttpServer for VerbalcodeActor {
 
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json as json;
 extern crate serde_qs as qs;
 
 mod responder;
@@ -58,6 +57,7 @@ mod test {
     use crate::handle_http_request;
     use std::fs;
     use wasmcloud_interface_httpserver::HttpRequest;
+    extern crate serde_json as json;
 
     #[test]
     fn can_handle_request() {

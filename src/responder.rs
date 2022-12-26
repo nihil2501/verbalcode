@@ -1,60 +1,41 @@
-use regex::Regex;
-use std::result;
-
 mod code_exchange;
-
-const CREATE_SUCCESS_MESSAGE: &str = "CODE_WRITE_SUCCESS_MESSAGE";
-const CREATE_INVALID_ERROR_MESSAGE: &str = "CODE_INVALID_ERROR_MESSAGE";
-const CREATE_HOW_TO_MESSAGE: &str = "CREATE_HOW_TO_MESSAGE";
-const READ_NOT_FOUND_ERROR_MESSAGE: &str = "CODE_NOT_FOUND_ERROR_MESSAGE";
-const READ_HOW_TO_MESSAGE: &str = "READ_HOW_TO_MESSAGE";
+mod parser;
+mod response;
 
 pub fn handle(prompt: String, prompter: String) -> String {
     // For now we just log prompter (but not in wasmcloud because of async
     // restriction to their logging crate).
     println!("prompt: {}, prompter: {}", prompt, prompter);
 
-    // Prompt is either to create a code or read a code.
-    // Prompt can either parse successfully as one of those actions or not.
-    // [Labels for test scenarios collocated here.]
-    match Action::parse(prompt) {
-        // When prompt does parse correctly it is for one of these actions.
+    // Prompt can either parse successfully or not.
+    match parser::parse(prompt) {
+        // When prompt does parse correctly it is for one of a distinct set of
+        // actions.
         Ok(action) => match action {
             // Prompt indicates that a code should be created for some message.
-            Action::Create(message) => match write(message) {
+            parser::Action::Create(message) => match create(message) {
                 // Create is valid, yielding back a code corresponding to the
                 // message.
-                // test: `create_valid`
-                Ok(code) => format!("{}\n{}", CREATE_SUCCESS_MESSAGE, code),
+                Ok(code) => response::create_valid(code),
 
-                // Message is invalid for some reason.
-                // test: `create_invalid`
                 Err(error) => match error {
-                    code_exchange::WriteError::Invalid(reason) => {
-                        format!("{}\n{}", CREATE_INVALID_ERROR_MESSAGE, reason)
+                    // Message is invalid for some reason.
+                    code_exchange::CreateError::Invalid(reason) => {
+                        response::create_invalid(reason)
                     }
                 },
             },
 
             // Prompt indicates that a code should be read.
-            Action::Read(code) => match read(code) {
+            parser::Action::Read(code) => match find(code) {
                 // Code exists in the exchange, yielding back the corresponding
                 // message.
-                // test: `read_found`
-                Ok(message) => {
-                    format!("{}\n\n{}", message, CREATE_HOW_TO_MESSAGE)
-                }
+                Ok(message) => response::find_found(message),
 
-                // Code doesn't exist in the exchange.
-                // test: `read_not_found`
                 Err(error) => match error {
-                    code_exchange::ReadError::NotFound => {
-                        format!(
-                            "{}\n\n{}\n\n{}",
-                            READ_NOT_FOUND_ERROR_MESSAGE,
-                            CREATE_HOW_TO_MESSAGE,
-                            READ_HOW_TO_MESSAGE
-                        )
+                    // Code doesn't exist in the exchange.
+                    code_exchange::FindError::NotFound => {
+                        response::find_not_found()
                     }
                 },
             },
@@ -63,85 +44,43 @@ pub fn handle(prompt: String, prompter: String) -> String {
         // When prompt doesn't parse correctly it does so in one of these ways.
         Err(error) => match error {
             // Prompt is so malformed it fails to indicate any action.
-            // test: `prompt_malformed`
-            PromptParseError::MalformedAction => {
-                format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, READ_HOW_TO_MESSAGE)
+            parser::PromptParseError::MalformedAction => {
+                response::prompt_malformed()
             }
 
             // Prompt indicates a create but any kind of message argument is
             // absent.
-            // test: `prompt_create_message_missing`
-            PromptParseError::MessageMissing => {
-                format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, READ_HOW_TO_MESSAGE)
+            parser::PromptParseError::MessageMissing => {
+                response::prompt_create_message_missing()
             }
         },
     }
 }
 
-enum Action {
-    Create(String),
-    Read(String),
-}
-
-enum PromptParseError {
-    MalformedAction,
-    MessageMissing,
-}
-
-type PromptParseResult = result::Result<Action, PromptParseError>;
-const PROMPT_REGEX: &str = r"\A([a-zA-Z]+)(\s+.*)?\z";
-
-impl Action {
-    fn parse(prompt: String) -> PromptParseResult {
-        let exp = Regex::new(PROMPT_REGEX).unwrap();
-        let mut matches = exp.captures_iter(prompt.trim());
-
-        match matches.next() {
-            Some(captures) => {
-                let code = captures[1].to_lowercase();
-
-                match code.as_str() {
-                    "verbalcode" => {
-                        let message =
-                            captures.get(2).map_or("", |c| c.as_str().trim());
-
-                        match message {
-                            "" => Err(PromptParseError::MessageMissing),
-                            _ => Ok(Action::Create(message.to_string())),
-                        }
-                    }
-                    _ => Ok(Action::Read(code)),
-                }
-            }
-            None => Err(PromptParseError::MalformedAction),
-        }
-    }
+#[cfg(not(test))]
+fn find(code: String) -> code_exchange::FindResult {
+    code_exchange::find(code)
 }
 
 #[cfg(not(test))]
-fn read(code: String) -> code_exchange::ReadResult {
-    code_exchange::read(code)
-}
-
-#[cfg(not(test))]
-fn write(message: String) -> code_exchange::WriteResult {
-    code_exchange::write(message)
+fn create(message: String) -> code_exchange::CreateResult {
+    code_exchange::create(message)
 }
 
 #[cfg(test)]
-fn read(code: String) -> code_exchange::ReadResult {
+fn find(code: String) -> code_exchange::FindResult {
     match code.as_str() {
         "foundcode" => Ok("found message".to_string()),
-        "notfoundcode" => Err(code_exchange::ReadError::NotFound),
+        "notfoundcode" => Err(code_exchange::FindError::NotFound),
         _ => panic!(),
     }
 }
 
 #[cfg(test)]
-fn write(message: String) -> code_exchange::WriteResult {
+fn create(message: String) -> code_exchange::CreateResult {
     match message.as_str() {
         "valid message" => Ok("validcode".to_string()),
-        "invalid message" => Err(code_exchange::WriteError::Invalid(
+        "invalid message" => Err(code_exchange::CreateError::Invalid(
             "invalid reason".to_string(),
         )),
         _ => panic!(),
@@ -159,10 +98,7 @@ mod test {
             "prompter".to_string(),
         );
 
-        assert_eq!(
-            response,
-            format!("{}\n{}", CREATE_SUCCESS_MESSAGE, "validcode")
-        )
+        assert_eq!(response, response::create_valid("validcode".to_string()))
     }
 
     #[test]
@@ -174,34 +110,23 @@ mod test {
 
         assert_eq!(
             response,
-            format!("{}\n{}", CREATE_INVALID_ERROR_MESSAGE, "invalid reason")
+            response::create_invalid("invalid reason".to_string())
         )
     }
 
     #[test]
-    fn read_found() {
+    fn find_found() {
         let response = handle("foundcode".to_string(), "prompter".to_string());
 
-        assert_eq!(
-            response,
-            format!("{}\n\n{}", "found message", CREATE_HOW_TO_MESSAGE)
-        )
+        assert_eq!(response, response::find_found("found message".to_string()))
     }
 
     #[test]
-    fn read_not_found() {
+    fn find_not_found() {
         let response =
             handle("notfoundcode".to_string(), "prompter".to_string());
 
-        assert_eq!(
-            response,
-            format!(
-                "{}\n\n{}\n\n{}",
-                READ_NOT_FOUND_ERROR_MESSAGE,
-                CREATE_HOW_TO_MESSAGE,
-                READ_HOW_TO_MESSAGE
-            )
-        )
+        assert_eq!(response, response::find_not_found())
     }
 
     #[test]
@@ -209,10 +134,7 @@ mod test {
         let response =
             handle("verbalcode!".to_string(), "prompter".to_string());
 
-        assert_eq!(
-            response,
-            format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, READ_HOW_TO_MESSAGE)
-        );
+        assert_eq!(response, response::prompt_malformed());
     }
 
     #[test]
@@ -220,9 +142,6 @@ mod test {
         let response =
             handle("verbalcode ".to_string(), "prompter".to_string());
 
-        assert_eq!(
-            response,
-            format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, READ_HOW_TO_MESSAGE)
-        )
+        assert_eq!(response, response::prompt_create_message_missing())
     }
 }

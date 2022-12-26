@@ -1,21 +1,21 @@
 use std::result;
 
-pub(crate) enum WriteError {
+pub(crate) enum CreateError {
     Invalid(String),
 }
 
-pub(crate) type WriteResult = result::Result<String, WriteError>;
+pub(crate) type CreateResult = result::Result<String, CreateError>;
 
-pub(crate) fn write(message: String) -> WriteResult {
+pub(crate) fn create(message: String) -> CreateResult {
     todo!()
 }
 
-pub(crate) enum ReadError {
+pub(crate) enum FindError {
     NotFound,
 }
 
-pub(crate) type ReadResult = result::Result<String, ReadError>;
+pub(crate) type FindResult = result::Result<String, FindError>;
 
-pub(crate) fn read(code: String) -> ReadResult {
+pub(crate) fn find(code: String) -> FindResult {
     todo!()
 }
