@@ -1,15 +1,21 @@
 const CREATE_SUCCESS_MESSAGE: &str = "CODE_WRITE_SUCCESS_MESSAGE";
-const CREATE_INVALID_ERROR_MESSAGE: &str = "CODE_INVALID_ERROR_MESSAGE";
 const CREATE_HOW_TO_MESSAGE: &str = "CREATE_HOW_TO_MESSAGE";
+const CREATE_OVER_CAPACITY_ERROR_MESSAGE: &str =
+    "CREATE_OVER_CAPACITY_ERROR_MESSAGE";
 const FIND_NOT_FOUND_ERROR_MESSAGE: &str = "CODE_NOT_FOUND_ERROR_MESSAGE";
 const FIND_HOW_TO_MESSAGE: &str = "FIND_HOW_TO_MESSAGE";
+const UNKNOWN_ERROR_MESSAGE: &str = "UNKNOWN_ERROR_MESSAGE";
 
 pub(crate) fn create_valid(code: String) -> String {
     format!("{}\n{}", CREATE_SUCCESS_MESSAGE, code)
 }
 
-pub(crate) fn create_invalid(reason: String) -> String {
-    format!("{}\n{}", CREATE_INVALID_ERROR_MESSAGE, reason)
+pub(crate) fn create_unknown_error() -> String {
+    UNKNOWN_ERROR_MESSAGE.to_string()
+}
+
+pub(crate) fn create_over_capacity() -> String {
+    CREATE_OVER_CAPACITY_ERROR_MESSAGE.to_string()
 }
 
 pub(crate) fn find_found(message: String) -> String {
@@ -25,10 +31,14 @@ pub(crate) fn find_not_found() -> String {
     )
 }
 
+pub(crate) fn find_unknown_error() -> String {
+    UNKNOWN_ERROR_MESSAGE.to_string()
+}
+
 pub(crate) fn prompt_malformed() -> String {
     format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, FIND_HOW_TO_MESSAGE)
 }
 
-pub(crate) fn prompt_create_message_missing() -> String {
+pub(crate) fn prompt_create_message_invalid(_reason: String) -> String {
     format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, FIND_HOW_TO_MESSAGE)
 }

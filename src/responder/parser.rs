@@ -8,12 +8,15 @@ pub(crate) enum Action {
 
 pub(crate) enum PromptParseError {
     MalformedAction,
-    MessageMissing,
+    MessageInvalid(String),
 }
 
 type PromptParseResult = result::Result<Action, PromptParseError>;
 const PROMPT_REGEX: &str = r"\A([a-zA-Z]+)(\s+.*)?\z";
 const CREATE_PROMPT_WORD: &str = "verbalcode";
+const MESSAGE_CHARACTER_LIMIT: usize = 140;
+const MESSAGE_INVALID_REASON_MESSAGE: &str =
+    "Message must not be empty and must be less than 140 characters.";
 
 pub(crate) fn parse(prompt: String) -> PromptParseResult {
     let exp = Regex::new(PROMPT_REGEX).unwrap();
@@ -28,9 +31,13 @@ pub(crate) fn parse(prompt: String) -> PromptParseResult {
                     let message =
                         captures.get(2).map_or("", |c| c.as_str().trim());
 
-                    match message {
-                        "" => Err(PromptParseError::MessageMissing),
-                        _ => Ok(Action::Create(message.to_string())),
+                    let len = message.len();
+                    if len > 0 && len <= MESSAGE_CHARACTER_LIMIT {
+                        Ok(Action::Create(message.to_string()))
+                    } else {
+                        Err(PromptParseError::MessageInvalid(
+                            MESSAGE_INVALID_REASON_MESSAGE.to_string(),
+                        ))
                     }
                 }
                 _ => Ok(Action::Read(code)),

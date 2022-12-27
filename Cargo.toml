@@ -11,15 +11,18 @@ name = "verbalcode"
 [dependencies]
 async-trait = "0.1"
 futures = "0.3"
-form_urlencoded = "1.0"
 wasmbus-rpc = "0.11"
 wasmcloud-interface-httpserver = "0.8"
+wasmcloud-interface-logging = "0.8"
 wasmcloud-interface-keyvalue = "0.9"
 serde_qs = "0.10"
-serde_json = "1.0"
 serde_derive = "1.0"
 serde = "1.0"
 regex = "1.7"
+
+[dev-dependencies]
+tokio = { version = "1.23", features = ["macros", "rt"] }
+serde_json = "1.0"
 
 [profile.release]
 # Optimize for small code size

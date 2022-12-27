@@ -1,16 +1,22 @@
-use crate::code_exchange;
+use wasmcloud_interface_logging::log;
 
+use crate::code_exchange;
 mod parser;
 mod response;
 
-pub fn handle<E: code_exchange::CodeExchange>(
+pub async fn handle<E: code_exchange::CodeExchange>(
     prompt: String,
     prompter: String,
     exchange: E,
 ) -> String {
-    // For now we just log prompter (but not in wasmcloud because of async
-    // restriction to their logging crate).
-    println!("prompt: {}, prompter: {}", prompt, prompter);
+    // For now we just log prompter.
+    log(
+        "debug",
+        format!("prompt: {}, prompter: {}", prompt, prompter),
+    )
+    .await
+    .iter()
+    .next();
 
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {
@@ -18,32 +24,46 @@ pub fn handle<E: code_exchange::CodeExchange>(
         // actions.
         Ok(action) => match action {
             // Prompt indicates that a code should be created for some message.
-            parser::Action::Create(message) => match exchange.create(message) {
-                // Create is valid, yielding back a code corresponding to the
-                // message.
-                Ok(code) => response::create_valid(code),
+            parser::Action::Create(message) => {
+                let create_result = exchange.create(message).await;
+                match create_result {
+                    // Create is valid, yielding back a code corresponding to
+                    // the message.
+                    Ok(code) => response::create_valid(code),
 
-                Err(error) => match error {
-                    // Message is invalid for some reason.
-                    code_exchange::CreateError::Invalid(reason) => {
-                        response::create_invalid(reason)
-                    }
-                },
-            },
+                    Err(error) => match error {
+                        // All code words are used up.
+                        code_exchange::CreateError::OverCapacity => {
+                            response::create_over_capacity()
+                        }
+                        // Unknown error.
+                        code_exchange::CreateError::Unknown(_) => {
+                            response::create_unknown_error()
+                        }
+                    },
+                }
+            }
 
             // Prompt indicates that a code should be read.
-            parser::Action::Read(code) => match exchange.find(code) {
-                // Code exists in the exchange, yielding back the corresponding
-                // message.
-                Ok(message) => response::find_found(message),
+            parser::Action::Read(code) => {
+                let find_result = exchange.find(code).await;
+                match find_result {
+                    // Code exists in the exchange, yielding back the
+                    // corresponding message.
+                    Ok(message) => response::find_found(message),
 
-                Err(error) => match error {
-                    // Code doesn't exist in the exchange.
-                    code_exchange::FindError::NotFound => {
-                        response::find_not_found()
-                    }
-                },
-            },
+                    Err(error) => match error {
+                        // Code doesn't exist in the exchange.
+                        code_exchange::FindError::NotFound => {
+                            response::find_not_found()
+                        }
+                        // Unknown error.
+                        code_exchange::FindError::Unknown(_) => {
+                            response::find_unknown_error()
+                        }
+                    },
+                }
+            }
         },
 
         // When prompt doesn't parse correctly it does so in one of these ways.
@@ -53,10 +73,9 @@ pub fn handle<E: code_exchange::CodeExchange>(
                 response::prompt_malformed()
             }
 
-            // Prompt indicates a create but any kind of message argument is
-            // absent.
-            parser::PromptParseError::MessageMissing => {
-                response::prompt_create_message_missing()
+            // Prompt indicates a create but message is too long or short.
+            parser::PromptParseError::MessageInvalid(reason) => {
+                response::prompt_create_message_invalid(reason)
             }
         },
     }
@@ -65,95 +84,136 @@ pub fn handle<E: code_exchange::CodeExchange>(
 #[cfg(test)]
 mod test {
     use crate::responder::*;
+    use async_trait::async_trait;
+    use wasmbus_rpc::error;
 
     struct MockCodeExchange;
 
+    #[async_trait]
     impl code_exchange::CodeExchange for MockCodeExchange {
-        fn create(&self, message: String) -> code_exchange::CreateResult {
+        async fn create(&self, message: String) -> code_exchange::CreateResult {
             match message.as_str() {
                 "valid message" => Ok("validcode".to_string()),
-                "invalid message" => Err(code_exchange::CreateError::Invalid(
-                    "invalid reason".to_string(),
+                "over capacity" => {
+                    Err(code_exchange::CreateError::OverCapacity)
+                }
+                "unknown error" => Err(code_exchange::CreateError::Unknown(
+                    error::RpcError::Other("unknown".to_string()),
                 )),
                 _ => panic!(),
             }
         }
 
-        fn find(&self, code: String) -> code_exchange::FindResult {
+        async fn find(&self, code: String) -> code_exchange::FindResult {
             match code.as_str() {
                 "foundcode" => Ok("found message".to_string()),
                 "notfoundcode" => Err(code_exchange::FindError::NotFound),
+                "unknownerror" => Err(code_exchange::FindError::Unknown(
+                    error::RpcError::Other("unknown".to_string()),
+                )),
                 _ => panic!(),
             }
         }
     }
 
-    #[test]
-    fn create_valid() {
+    #[tokio::test]
+    async fn create_valid() {
         let response = handle(
             "verbalcode valid message".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
+        )
+        .await;
 
         assert_eq!(response, response::create_valid("validcode".to_string()))
     }
 
-    #[test]
-    fn create_invalid() {
+    #[tokio::test]
+    async fn create_over_capacity() {
         let response = handle(
-            "verbalcode invalid message".to_string(),
+            "verbalcode over capacity".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
-
-        assert_eq!(
-            response,
-            response::create_invalid("invalid reason".to_string())
         )
+        .await;
+
+        assert_eq!(response, response::create_over_capacity())
     }
 
-    #[test]
-    fn find_found() {
+    #[tokio::test]
+    async fn create_unknown_error() {
+        let response = handle(
+            "verbalcode unknown error".to_string(),
+            "prompter".to_string(),
+            MockCodeExchange,
+        )
+        .await;
+
+        assert_eq!(response, response::create_unknown_error())
+    }
+
+    #[tokio::test]
+    async fn find_found() {
         let response = handle(
             "foundcode".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
+        )
+        .await;
 
         assert_eq!(response, response::find_found("found message".to_string()))
     }
 
-    #[test]
-    fn find_not_found() {
+    #[tokio::test]
+    async fn find_not_found() {
         let response = handle(
             "notfoundcode".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
+        )
+        .await;
 
         assert_eq!(response, response::find_not_found())
     }
 
-    #[test]
-    fn prompt_malformed() {
+    #[tokio::test]
+    async fn find_unknown_error() {
+        let response = handle(
+            "unknownerror".to_string(),
+            "prompter".to_string(),
+            MockCodeExchange,
+        )
+        .await;
+
+        assert_eq!(response, response::find_unknown_error())
+    }
+
+    #[tokio::test]
+    async fn prompt_malformed() {
         let response = handle(
             "verbalcode!".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
+        )
+        .await;
 
         assert_eq!(response, response::prompt_malformed());
     }
 
-    #[test]
-    fn prompt_create_message_missing() {
+    #[tokio::test]
+    async fn prompt_create_message_invalid() {
         let response = handle(
-            "verbalcode ".to_string(),
+            "verbalcode".to_string(),
             "prompter".to_string(),
             MockCodeExchange,
-        );
+        )
+        .await;
 
-        assert_eq!(response, response::prompt_create_message_missing())
+        assert_eq!(
+            response,
+            response::prompt_create_message_invalid(
+                "some invalid reason".to_string()
+            )
+        );
     }
 }
