@@ -22,7 +22,7 @@ impl HttpServer for VerbalcodeActor {
 extern crate serde_derive;
 extern crate serde_qs as qs;
 
-mod code_exchange;
+mod exchange;
 mod responder;
 mod twilio {
     #[derive(Debug, Deserialize)]
@@ -38,8 +38,8 @@ async fn handle_http_request(
     req: &HttpRequest,
 ) -> RpcResult<HttpResponse> {
     let payload: twilio::Payload = qs::from_bytes(req.body.as_slice()).unwrap();
-    let exchange = code_exchange::ActorCodeExchange::new(ctx);
-    let body = respond(payload.body, payload.from, exchange).await;
+    let store = new_store(ctx);
+    let body = respond(payload.body, payload.from, store).await;
 
     Ok(HttpResponse {
         body: body.as_bytes().to_vec(),
@@ -48,21 +48,31 @@ async fn handle_http_request(
 }
 
 #[cfg(not(test))]
-async fn respond<E: code_exchange::CodeExchange>(
+async fn respond<T: exchange::KeyValueStore>(
     prompt: String,
     prompter: String,
-    exchange: E,
+    store: T,
 ) -> String {
-    responder::handle(prompt, prompter, exchange).await
+    responder::handle(prompt, prompter, store).await
+}
+
+#[cfg(not(test))]
+fn new_store(ctx: &Context) -> exchange::KeyValueStoreActor {
+    exchange::KeyValueStoreActor::new(ctx)
 }
 
 #[cfg(test)]
-async fn respond<C: code_exchange::CodeExchange>(
+async fn respond<T: exchange::KeyValueStore>(
     prompt: String,
     prompter: String,
-    _ex: C,
+    _store: T,
 ) -> String {
     format!("from: {}, body: {}", prompter, prompt)
+}
+
+#[cfg(test)]
+fn new_store(_ctx: &Context) -> exchange::test::MockKeyValueStore {
+    exchange::test::MockKeyValueStore
 }
 
 #[cfg(test)]

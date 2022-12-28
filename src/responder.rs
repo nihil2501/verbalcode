@@ -1,23 +1,12 @@
-use wasmcloud_interface_logging::log;
-
-use crate::code_exchange;
+use crate::exchange;
 mod parser;
 mod response;
 
-pub async fn handle<E: code_exchange::CodeExchange>(
+pub async fn handle<T: exchange::KeyValueStore>(
     prompt: String,
-    prompter: String,
-    exchange: E,
+    _prompter: String,
+    store: T,
 ) -> String {
-    // For now we just log prompter.
-    log(
-        "debug",
-        format!("prompt: {}, prompter: {}", prompt, prompter),
-    )
-    .await
-    .iter()
-    .next();
-
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {
         // When prompt does parse correctly it is for one of a distinct set of
@@ -25,19 +14,19 @@ pub async fn handle<E: code_exchange::CodeExchange>(
         Ok(action) => match action {
             // Prompt indicates that a code should be created for some message.
             parser::Action::Create(message) => {
-                let create_result = exchange.create(message).await;
-                match create_result {
+                let result = create(message, store).await;
+                match result {
                     // Create is valid, yielding back a code corresponding to
                     // the message.
                     Ok(code) => response::create_valid(code),
 
                     Err(error) => match error {
                         // All code words are used up.
-                        code_exchange::CreateError::OverCapacity => {
+                        exchange::CreateError::OverCapacity => {
                             response::create_over_capacity()
                         }
                         // Unknown error.
-                        code_exchange::CreateError::Unknown(_) => {
+                        exchange::CreateError::Unknown(_) => {
                             response::create_unknown_error()
                         }
                     },
@@ -46,19 +35,19 @@ pub async fn handle<E: code_exchange::CodeExchange>(
 
             // Prompt indicates that a code should be read.
             parser::Action::Read(code) => {
-                let find_result = exchange.find(code).await;
-                match find_result {
+                let result = find(code, store).await;
+                match result {
                     // Code exists in the exchange, yielding back the
                     // corresponding message.
                     Ok(message) => response::find_found(message),
 
                     Err(error) => match error {
                         // Code doesn't exist in the exchange.
-                        code_exchange::FindError::NotFound => {
+                        exchange::FindError::NotFound => {
                             response::find_not_found()
                         }
                         // Unknown error.
-                        code_exchange::FindError::Unknown(_) => {
+                        exchange::FindError::Unknown(_) => {
                             response::find_unknown_error()
                         }
                     },
@@ -81,47 +70,65 @@ pub async fn handle<E: code_exchange::CodeExchange>(
     }
 }
 
+#[cfg(not(test))]
+async fn find<T: exchange::KeyValueStore>(
+    code: String,
+    store: T,
+) -> Result<String, exchange::FindError> {
+    exchange::find(code, store).await
+}
+
+#[cfg(not(test))]
+async fn create<T: exchange::KeyValueStore>(
+    message: String,
+    store: T,
+) -> Result<String, exchange::CreateError> {
+    exchange::create(message, store).await
+}
+
+use wasmbus_rpc::actor::prelude::*;
+
 #[cfg(test)]
-mod test {
-    use crate::responder::*;
-    use async_trait::async_trait;
-    use wasmbus_rpc::error;
-
-    struct MockCodeExchange;
-
-    #[async_trait]
-    impl code_exchange::CodeExchange for MockCodeExchange {
-        async fn create(&self, message: String) -> code_exchange::CreateResult {
-            match message.as_str() {
-                "valid message" => Ok("validcode".to_string()),
-                "over capacity" => {
-                    Err(code_exchange::CreateError::OverCapacity)
-                }
-                "unknown error" => Err(code_exchange::CreateError::Unknown(
-                    error::RpcError::Other("unknown".to_string()),
-                )),
-                _ => panic!(),
-            }
-        }
-
-        async fn find(&self, code: String) -> code_exchange::FindResult {
-            match code.as_str() {
-                "foundcode" => Ok("found message".to_string()),
-                "notfoundcode" => Err(code_exchange::FindError::NotFound),
-                "unknownerror" => Err(code_exchange::FindError::Unknown(
-                    error::RpcError::Other("unknown".to_string()),
-                )),
-                _ => panic!(),
-            }
-        }
+async fn create<T: exchange::KeyValueStore>(
+    message: String,
+    _store: T,
+) -> Result<String, exchange::CreateError> {
+    match message.as_str() {
+        "valid message" => Ok("validcode".to_string()),
+        "over capacity" => Err(exchange::CreateError::OverCapacity),
+        "unknown error" => Err(exchange::CreateError::Unknown(
+            RpcError::Other("unknown".to_string()),
+        )),
+        _ => panic!(),
     }
+}
+
+#[cfg(test)]
+async fn find<T: exchange::KeyValueStore>(
+    code: String,
+    _store: T,
+) -> Result<String, exchange::FindError> {
+    match code.as_str() {
+        "foundcode" => Ok("found message".to_string()),
+        "notfoundcode" => Err(exchange::FindError::NotFound),
+        "unknownerror" => Err(exchange::FindError::Unknown(RpcError::Other(
+            "unknown".to_string(),
+        ))),
+        _ => panic!(),
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::responder::*;
+    use exchange::test::MockKeyValueStore;
 
     #[tokio::test]
     async fn create_valid() {
         let response = handle(
             "verbalcode valid message".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -133,7 +140,7 @@ mod test {
         let response = handle(
             "verbalcode over capacity".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -145,7 +152,7 @@ mod test {
         let response = handle(
             "verbalcode unknown error".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -157,7 +164,7 @@ mod test {
         let response = handle(
             "foundcode".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -169,7 +176,7 @@ mod test {
         let response = handle(
             "notfoundcode".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -181,7 +188,7 @@ mod test {
         let response = handle(
             "unknownerror".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -193,7 +200,7 @@ mod test {
         let response = handle(
             "verbalcode!".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -205,7 +212,7 @@ mod test {
         let response = handle(
             "verbalcode".to_string(),
             "prompter".to_string(),
-            MockCodeExchange,
+            MockKeyValueStore,
         )
         .await;
 
@@ -214,6 +221,6 @@ mod test {
             response::prompt_create_message_invalid(
                 "some invalid reason".to_string()
             )
-        );
+        )
     }
 }

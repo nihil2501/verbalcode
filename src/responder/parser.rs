@@ -1,12 +1,12 @@
 use regex::Regex;
 use std::result;
 
-pub(crate) enum Action {
+pub enum Action {
     Create(String),
     Read(String),
 }
 
-pub(crate) enum PromptParseError {
+pub enum PromptParseError {
     MalformedAction,
     MessageInvalid(String),
 }
@@ -18,7 +18,7 @@ const MESSAGE_CHARACTER_LIMIT: usize = 140;
 const MESSAGE_INVALID_REASON_MESSAGE: &str =
     "Message must not be empty and must be less than 140 characters.";
 
-pub(crate) fn parse(prompt: String) -> PromptParseResult {
+pub fn parse(prompt: String) -> PromptParseResult {
     let exp = Regex::new(PROMPT_REGEX).unwrap();
     let mut matches = exp.captures_iter(prompt.trim());
 
