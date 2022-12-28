@@ -38,8 +38,8 @@ async fn handle_http_request(
     req: &HttpRequest,
 ) -> RpcResult<HttpResponse> {
     let payload: twilio::Payload = qs::from_bytes(req.body.as_slice()).unwrap();
-    let store = new_store(ctx);
-    let body = respond(payload.body, payload.from, store).await;
+    let mut store = new_store(ctx);
+    let body = respond(payload.body, payload.from, &mut store).await;
 
     Ok(HttpResponse {
         body: body.as_bytes().to_vec(),
@@ -51,28 +51,31 @@ async fn handle_http_request(
 async fn respond<T: exchange::KeyValueStore>(
     prompt: String,
     prompter: String,
-    store: T,
+    store: &mut T,
 ) -> String {
     responder::handle(prompt, prompter, store).await
-}
-
-#[cfg(not(test))]
-fn new_store(ctx: &Context) -> exchange::KeyValueStoreActor {
-    exchange::KeyValueStoreActor::new(ctx)
 }
 
 #[cfg(test)]
 async fn respond<T: exchange::KeyValueStore>(
     prompt: String,
     prompter: String,
-    _store: T,
+    _store: &mut T,
 ) -> String {
     format!("from: {}, body: {}", prompter, prompt)
 }
 
-#[cfg(test)]
-fn new_store(_ctx: &Context) -> exchange::test::MockKeyValueStore {
-    exchange::test::MockKeyValueStore
+#[cfg(target_arch = "wasm32")]
+fn new_store(ctx: &Context) -> exchange::KeyValueStoreActor {
+    exchange::KeyValueStoreActor::new(ctx)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashMap;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn new_store(_ctx: &Context) -> HashMap<String, String> {
+    HashMap::new()
 }
 
 #[cfg(test)]

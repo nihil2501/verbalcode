@@ -5,7 +5,7 @@ mod response;
 pub async fn handle<T: exchange::KeyValueStore>(
     prompt: String,
     _prompter: String,
-    store: T,
+    store: &mut T,
 ) -> String {
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {
@@ -71,27 +71,28 @@ pub async fn handle<T: exchange::KeyValueStore>(
 }
 
 #[cfg(not(test))]
-async fn find<T: exchange::KeyValueStore>(
-    code: String,
-    store: T,
-) -> Result<String, exchange::FindError> {
-    exchange::find(code, store).await
-}
-
-#[cfg(not(test))]
 async fn create<T: exchange::KeyValueStore>(
     message: String,
-    store: T,
+    store: &mut T,
 ) -> Result<String, exchange::CreateError> {
     exchange::create(message, store).await
 }
 
+#[cfg(not(test))]
+async fn find<T: exchange::KeyValueStore>(
+    code: String,
+    store: &mut T,
+) -> Result<String, exchange::FindError> {
+    exchange::find(code, store).await
+}
+
+#[cfg(test)]
 use wasmbus_rpc::actor::prelude::*;
 
 #[cfg(test)]
 async fn create<T: exchange::KeyValueStore>(
     message: String,
-    _store: T,
+    _store: &mut T,
 ) -> Result<String, exchange::CreateError> {
     match message.as_str() {
         "valid message" => Ok("validcode".to_string()),
@@ -106,7 +107,7 @@ async fn create<T: exchange::KeyValueStore>(
 #[cfg(test)]
 async fn find<T: exchange::KeyValueStore>(
     code: String,
-    _store: T,
+    _store: &mut T,
 ) -> Result<String, exchange::FindError> {
     match code.as_str() {
         "foundcode" => Ok("found message".to_string()),
@@ -121,18 +122,22 @@ async fn find<T: exchange::KeyValueStore>(
 #[cfg(test)]
 pub mod test {
     use crate::responder::*;
-    use exchange::test::MockKeyValueStore;
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn create_valid() {
         let response = handle(
             "verbalcode valid message".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
         assert_eq!(response, response::create_valid("validcode".to_string()))
+    }
+
+    fn mock_key_value_store() -> HashMap<String, String> {
+        HashMap::new()
     }
 
     #[tokio::test]
@@ -140,7 +145,7 @@ pub mod test {
         let response = handle(
             "verbalcode over capacity".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -152,7 +157,7 @@ pub mod test {
         let response = handle(
             "verbalcode unknown error".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -164,7 +169,7 @@ pub mod test {
         let response = handle(
             "foundcode".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -176,7 +181,7 @@ pub mod test {
         let response = handle(
             "notfoundcode".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -188,7 +193,7 @@ pub mod test {
         let response = handle(
             "unknownerror".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -200,7 +205,7 @@ pub mod test {
         let response = handle(
             "verbalcode!".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 
@@ -212,7 +217,7 @@ pub mod test {
         let response = handle(
             "verbalcode".to_string(),
             "prompter".to_string(),
-            MockKeyValueStore,
+            &mut mock_key_value_store(),
         )
         .await;
 

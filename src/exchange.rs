@@ -1,18 +1,18 @@
-use std::result;
+use std::{collections::HashMap, result};
 
 // Codes last for a day.
 const CODE_EXPIRY: u32 = 86_400;
 
 pub async fn create<T: KeyValueStore>(
     message: String,
-    store: T,
+    store: &mut T,
 ) -> CreateResult {
-    let code = generate_code(&store).await?;
+    let code = generate_code(store).await?;
     store.set(&code, &message, CODE_EXPIRY).await?;
     Ok(code)
 }
 
-pub async fn find<T: KeyValueStore>(code: String, store: T) -> FindResult {
+pub async fn find<T: KeyValueStore>(code: String, store: &mut T) -> FindResult {
     let response = store.get(&code).await?;
     match response {
         Some(message) => Ok(message),
@@ -23,7 +23,7 @@ pub async fn find<T: KeyValueStore>(code: String, store: T) -> FindResult {
 const CODE_LIST: &[&str] = &["hello", "goodbye"];
 const CODE_LIST_INDEX_KEY: &str = "code_list_index";
 
-async fn generate_code<T: KeyValueStore>(store: &T) -> GenerateCodeResult {
+async fn generate_code<T: KeyValueStore>(store: &mut T) -> GenerateCodeResult {
     // Depends on atomic increment. Our relaxed strategy (one we still need
     // to prove is suitable enough) is as follows:
     //
@@ -94,8 +94,13 @@ impl From<RpcError> for GenerateCodeError {
 #[async_trait]
 pub trait KeyValueStore {
     async fn get(&self, key: &str) -> RpcResult<Option<String>>;
-    async fn set(&self, key: &str, value: &str, expires: u32) -> RpcResult<()>;
-    async fn incr_by(&self, key: &str, value: i32) -> RpcResult<i32>;
+    async fn set(
+        &mut self,
+        key: &str,
+        value: &str,
+        expires: u32,
+    ) -> RpcResult<()>;
+    async fn incr_by(&mut self, key: &str, value: i32) -> RpcResult<i32>;
 }
 
 use wasmbus_rpc::actor::prelude::*;
@@ -113,7 +118,7 @@ impl KeyValueStoreActor<'_> {
     }
 }
 
-#[cfg(not(test))]
+#[cfg(target_arch = "wasm32")]
 #[async_trait]
 impl KeyValueStore for KeyValueStoreActor<'_> {
     // Interpretation of `Option` value might only be accurate for redis.
@@ -126,7 +131,12 @@ impl KeyValueStore for KeyValueStoreActor<'_> {
         }
     }
 
-    async fn set(&self, key: &str, value: &str, expires: u32) -> RpcResult<()> {
+    async fn set(
+        &mut self,
+        key: &str,
+        value: &str,
+        expires: u32,
+    ) -> RpcResult<()> {
         KeyValueSender::new()
             .set(
                 self.ctx,
@@ -139,7 +149,7 @@ impl KeyValueStore for KeyValueStoreActor<'_> {
             .await
     }
 
-    async fn incr_by(&self, key: &str, value: i32) -> RpcResult<i32> {
+    async fn incr_by(&mut self, key: &str, value: i32) -> RpcResult<i32> {
         KeyValueSender::new()
             .increment(
                 self.ctx,
@@ -152,31 +162,29 @@ impl KeyValueStore for KeyValueStoreActor<'_> {
     }
 }
 
-#[cfg(test)]
-pub mod test {
-    use crate::exchange::KeyValueStore;
-    use async_trait::async_trait;
-    use wasmbus_rpc::actor::prelude::*;
+#[async_trait]
+impl KeyValueStore for HashMap<String, String> {
+    async fn get(&self, key: &str) -> RpcResult<Option<String>> {
+        Ok(HashMap::get(self, key).cloned())
+    }
 
-    pub struct MockKeyValueStore;
+    async fn set(
+        &mut self,
+        key: &str,
+        value: &str,
+        _expires: u32,
+    ) -> RpcResult<()> {
+        HashMap::insert(self, key.to_string(), value.to_string());
+        Ok(())
+    }
 
-    #[async_trait]
-    impl KeyValueStore for MockKeyValueStore {
-        async fn get(&self, key: &str) -> RpcResult<Option<String>> {
-            todo!()
-        }
+    async fn incr_by(&mut self, key: &str, value: i32) -> RpcResult<i32> {
+        let value = match HashMap::get(self, key) {
+            Some(i) => i.parse::<i32>().unwrap() + value,
+            None => 0,
+        };
 
-        async fn set(
-            &self,
-            key: &str,
-            value: &str,
-            expires: u32,
-        ) -> RpcResult<()> {
-            todo!()
-        }
-
-        async fn incr_by(&self, key: &str, value: i32) -> RpcResult<i32> {
-            todo!()
-        }
+        HashMap::insert(self, key.to_string(), value.to_string());
+        Ok(value)
     }
 }
