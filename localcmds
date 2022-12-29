@@ -1,0 +1,12 @@
+curl -XPOST -H 'Content-Type: application/x-www-form-urlencoded' \
+    -d 'Body=verbalcode hello world&From=+14105551234' \
+    'http://localhost:8080'
+
+// make actor_id
+wash call MDPJTMU43XXM5KWADFSEI7LM7IL3SSVU565DXIJXCH457TPPI2VU7WCT \
+    HttpServer.HandleRequest \
+	'{
+	    "method": "POST", "path": "/", "body": "Body=test&From=+14108025604", "header": {
+			"Content-Type": "application/x-www-form-urlencoded"
+		}
+	}'
