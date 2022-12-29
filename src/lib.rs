@@ -2,6 +2,8 @@ use wasmbus_rpc::actor::prelude::*;
 use wasmcloud_interface_httpserver::{
     HttpRequest, HttpResponse, HttpServer, HttpServerReceiver,
 };
+#[cfg(target_arch = "wasm32")]
+use wasmcloud_interface_logging::log;
 
 #[derive(Debug, Default, Actor, HealthResponder)]
 #[services(Actor, HttpServer)]
@@ -14,6 +16,10 @@ impl HttpServer for VerbalcodeActor {
         ctx: &Context,
         req: &HttpRequest,
     ) -> RpcResult<HttpResponse> {
+        let log_e = format!("Request = {:?}", req);
+        #[cfg(target_arch = "wasm32")]
+        log("debug", log_e).await.iter().next();
+
         handle_http_request(ctx, req).await
     }
 }
@@ -43,10 +49,16 @@ async fn handle_http_request(
     let mut store = new_store(ctx);
     let body = respond(payload.body, payload.from, &mut store).await;
 
-    Ok(HttpResponse {
+    let resp = HttpResponse {
         body: body.as_bytes().to_vec(),
         ..Default::default()
-    })
+    };
+
+    let log_e = format!("Response = {:?}, Body = {}", resp, body);
+    #[cfg(target_arch = "wasm32")]
+    log("debug", log_e).await.iter().next();
+
+    Ok(resp)
 }
 
 #[cfg(not(test))]

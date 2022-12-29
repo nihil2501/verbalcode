@@ -1,14 +1,21 @@
 use crate::key_value_store::KeyValueStore;
 
+#[cfg(target_arch = "wasm32")]
+use wasmcloud_interface_logging::log;
+
 mod exchange;
 mod parser;
 mod response;
 
 pub async fn handle<T: KeyValueStore>(
     prompt: String,
-    _prompter: String,
+    prompter: String,
     store: &mut T,
 ) -> String {
+    let log_e = format!("prompter: {}, prompt: {}", prompter, prompt);
+    #[cfg(target_arch = "wasm32")]
+    log("debug", log_e).await.iter().next();
+
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {
         // When prompt does parse correctly it is for one of a distinct set of
