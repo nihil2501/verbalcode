@@ -23,22 +23,24 @@ pub async fn find<T: KeyValueStore>(code: String, store: &mut T) -> FindResult {
     }
 }
 
-// `CODE_LIST` shouldn't change over time in order for `CODE_LIST_INDEX_KEY` to
+mod codes;
+// `CODES` shouldn't change over time in order for `verbalcode:codes_index` to
 // remain coherent with respect to it.
-const CODE_LIST: &[&str] = &["hello", "goodbye"];
-const CODE_LIST_INDEX_KEY: &str = "verbalcode:code_list_index";
+use codes::CODES;
+
+const CODES_INDEX_KEY: &str = "verbalcode:codes_index";
 
 async fn generate_code<T: KeyValueStore>(store: &mut T) -> GenerateCodeResult {
     // Depends on atomic increment. Our relaxed strategy (one we still need
     // to prove is suitable enough) is as follows:
     //
     // 1. Increment an index into codeword list.
-    let index = store.incr_by(CODE_LIST_INDEX_KEY, 1).await?;
-    let index = (index as usize) % CODE_LIST.len();
+    let index = store.incr_by(CODES_INDEX_KEY, 1).await?;
+    let index = (index as usize) % CODES.len();
 
     // 2. From index, fetch candidate codeword and check if it exists.
     // Expiry handled by kv-store.
-    let code = CODE_LIST[index];
+    let code = CODES[index];
     let response = store.get(code).await?;
     match response {
         // If not, use it.
@@ -46,7 +48,7 @@ async fn generate_code<T: KeyValueStore>(store: &mut T) -> GenerateCodeResult {
         // Otherwise, error out with a `OverCapacity` and also decrement
         // back.
         Some(_) => {
-            store.incr_by(CODE_LIST_INDEX_KEY, -1).await?;
+            store.incr_by(CODES_INDEX_KEY, -1).await?;
             Err(GenerateCodeError::OverCapacity)
         }
     }

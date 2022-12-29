@@ -11,7 +11,7 @@ pub struct InMemory {
 }
 
 impl InMemory {
-    #[allow(dead_code)] // Just to settle cfg confusion.
+    #[allow(dead_code)] // Just to settle `cfg` confusion.
     pub fn new() -> InMemory {
         InMemory {
             map: HashMap::new(),
