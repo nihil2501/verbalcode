@@ -1,10 +1,12 @@
 use async_trait::async_trait;
+use tokio::time::Duration;
 use wasmbus_rpc::actor::prelude::RpcResult;
 
-pub mod actor;
+mod actor;
+#[cfg(target_arch = "wasm32")]
 pub use actor::Actor;
 
-pub mod in_memory;
+mod in_memory;
 pub use in_memory::InMemory;
 
 #[async_trait]
@@ -14,7 +16,7 @@ pub trait KeyValueStore {
         &mut self,
         key: &str,
         value: &str,
-        expires: u32,
+        expires: Duration,
     ) -> RpcResult<()>;
     async fn incr_by(&mut self, key: &str, value: i32) -> RpcResult<i32>;
 }

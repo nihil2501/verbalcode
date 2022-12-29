@@ -68,19 +68,13 @@ async fn respond<T: KeyValueStore>(
 }
 
 #[cfg(target_arch = "wasm32")]
-use key_value_store::Actor as KvActor;
-
-#[cfg(target_arch = "wasm32")]
-fn new_store(ctx: &Context) -> KvActor {
-    KvActor::new(ctx)
+fn new_store(ctx: &Context) -> key_value_store::Actor {
+    key_value_store::Actor::new(ctx)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-use key_value_store::InMemory;
-
-#[cfg(not(target_arch = "wasm32"))]
-fn new_store(_ctx: &Context) -> InMemory {
-    InMemory::new()
+fn new_store(_ctx: &Context) -> key_value_store::InMemory {
+    key_value_store::InMemory::new()
 }
 
 #[cfg(test)]

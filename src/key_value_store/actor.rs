@@ -1,3 +1,6 @@
+#![cfg(target_arch = "wasm32")]
+
+use tokio::time::Duration;
 use wasmbus_rpc::actor::prelude::*;
 use wasmcloud_interface_keyvalue::{
     IncrementRequest, KeyValue, KeyValueSender, SetRequest,
@@ -15,7 +18,6 @@ impl Actor<'_> {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[async_trait]
 impl KeyValueStore for Actor<'_> {
     // Interpretation of `Option` value might only be accurate for redis.
@@ -32,7 +34,7 @@ impl KeyValueStore for Actor<'_> {
         &mut self,
         key: &str,
         value: &str,
-        expires: u32,
+        expires: Duration,
     ) -> RpcResult<()> {
         KeyValueSender::new()
             .set(
@@ -40,7 +42,7 @@ impl KeyValueStore for Actor<'_> {
                 &SetRequest {
                     key: key.to_owned(),
                     value: value.to_owned(),
-                    expires,
+                    expires: expires.as_secs().try_into().unwrap(),
                 },
             )
             .await

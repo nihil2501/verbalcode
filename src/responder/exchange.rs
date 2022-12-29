@@ -1,9 +1,10 @@
 use crate::key_value_store::KeyValueStore;
 use std::result;
+use tokio::time::Duration;
 use wasmbus_rpc::actor::prelude::*;
 
 // Codes last for a day.
-const CODE_EXPIRY: u32 = 86_400;
+const CODE_EXPIRY: Duration = Duration::from_secs(86_400);
 
 pub async fn create<T: KeyValueStore>(
     message: String,
@@ -51,18 +52,23 @@ async fn generate_code<T: KeyValueStore>(store: &mut T) -> GenerateCodeResult {
     }
 }
 
+pub type FindResult = result::Result<String, FindError>;
+pub type GenerateCodeResult = result::Result<String, GenerateCodeError>;
 pub type CreateResult = result::Result<String, CreateError>;
+
+#[derive(Debug)]
 pub enum CreateError {
     OverCapacity,
     Unknown(RpcError),
 }
 
-pub type FindResult = result::Result<String, FindError>;
+#[derive(Debug)]
 pub enum FindError {
     NotFound,
     Unknown(RpcError),
 }
-pub type GenerateCodeResult = result::Result<String, GenerateCodeError>;
+
+#[derive(Debug)]
 pub enum GenerateCodeError {
     OverCapacity,
     Unknown(RpcError),
@@ -92,5 +98,40 @@ impl From<RpcError> for FindError {
 impl From<RpcError> for GenerateCodeError {
     fn from(error: RpcError) -> Self {
         GenerateCodeError::Unknown(error)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::key_value_store;
+
+    #[tokio::test]
+    async fn it_exchanges_limited_code_words_with_expiry() {
+        tokio::time::pause();
+        let mut store = key_value_store::InMemory::new();
+
+        let result = find("hello".to_string(), &mut store).await;
+        assert!(matches!(result, Err(FindError::NotFound)));
+
+        let result = create("message 1".to_string(), &mut store).await;
+        assert_eq!(result.unwrap(), "hello");
+
+        let result = find("hello".to_string(), &mut store).await;
+        assert_eq!(result.unwrap(), "message 1".to_string());
+
+        let result = create("message 2".to_string(), &mut store).await;
+        assert_eq!(result.unwrap(), "goodbye");
+
+        let result = create("message 3".to_string(), &mut store).await;
+        assert!(matches!(result, Err(CreateError::OverCapacity)));
+
+        tokio::time::advance(CODE_EXPIRY).await;
+
+        let result = create("message 3".to_string(), &mut store).await;
+        assert_eq!(result.unwrap(), "hello");
+
+        let result = find("goodbye".to_string(), &mut store).await;
+        assert!(matches!(result, Err(FindError::NotFound)));
     }
 }

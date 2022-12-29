@@ -1,17 +1,17 @@
 use super::KeyValueStore;
 use async_trait::async_trait;
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
+use tokio::time::{Duration, Instant};
 use wasmbus_rpc::actor::prelude::*;
 
+#[derive(Debug)]
 pub struct InMemory {
     map: HashMap<String, String>,
     expiry: HashMap<String, Instant>,
 }
 
 impl InMemory {
+    #[allow(dead_code)] // Just to settle cfg confusion.
     pub fn new() -> InMemory {
         InMemory {
             map: HashMap::new(),
@@ -26,7 +26,7 @@ impl KeyValueStore for InMemory {
         let value = match self.expiry.get(key) {
             None => None,
             Some(time) => {
-                if time >= &Instant::now() {
+                if time > &Instant::now() {
                     self.map.get(key)
                 } else {
                     self.expiry.remove(key);
@@ -43,11 +43,11 @@ impl KeyValueStore for InMemory {
         &mut self,
         key: &str,
         value: &str,
-        expires: u32,
+        expires: Duration,
     ) -> RpcResult<()> {
-        let expiration = Instant::now() + Duration::from_secs(expires.into());
+        let expires = Instant::now() + expires;
+        self.expiry.insert(key.to_string(), expires);
         self.map.insert(key.to_string(), value.to_string());
-        self.expiry.insert(key.to_string(), expiration);
 
         Ok(())
     }

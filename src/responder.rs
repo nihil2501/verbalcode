@@ -123,7 +123,7 @@ async fn find<T: KeyValueStore>(
 
 #[cfg(test)]
 pub mod test {
-    use crate::{key_value_store::InMemory, responder::*};
+    use crate::{key_value_store, responder::*};
 
     #[tokio::test]
     async fn create_valid() {
@@ -226,7 +226,7 @@ pub mod test {
         )
     }
 
-    fn mock_key_value_store() -> InMemory {
-        InMemory::new()
+    fn mock_key_value_store() -> key_value_store::InMemory {
+        key_value_store::InMemory::new()
     }
 }
