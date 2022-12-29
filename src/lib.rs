@@ -22,7 +22,9 @@ impl HttpServer for VerbalcodeActor {
 extern crate serde_derive;
 extern crate serde_qs as qs;
 
-mod exchange;
+use key_value_store::KeyValueStore;
+
+mod key_value_store;
 mod responder;
 mod twilio {
     #[derive(Debug, Deserialize)]
@@ -48,7 +50,7 @@ async fn handle_http_request(
 }
 
 #[cfg(not(test))]
-async fn respond<T: exchange::KeyValueStore>(
+async fn respond<T: KeyValueStore>(
     prompt: String,
     prompter: String,
     store: &mut T,
@@ -57,7 +59,7 @@ async fn respond<T: exchange::KeyValueStore>(
 }
 
 #[cfg(test)]
-async fn respond<T: exchange::KeyValueStore>(
+async fn respond<T: KeyValueStore>(
     prompt: String,
     prompter: String,
     _store: &mut T,
@@ -66,16 +68,19 @@ async fn respond<T: exchange::KeyValueStore>(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn new_store(ctx: &Context) -> exchange::KeyValueStoreActor {
-    exchange::KeyValueStoreActor::new(ctx)
+use key_value_store::Actor as KvActor;
+
+#[cfg(target_arch = "wasm32")]
+fn new_store(ctx: &Context) -> KvActor {
+    KvActor::new(ctx)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashMap;
+use key_value_store::InMemory;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn new_store(_ctx: &Context) -> HashMap<String, String> {
-    HashMap::new()
+fn new_store(_ctx: &Context) -> InMemory {
+    InMemory::new()
 }
 
 #[cfg(test)]

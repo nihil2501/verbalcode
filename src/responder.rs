@@ -1,8 +1,10 @@
-use crate::exchange;
+use crate::key_value_store::KeyValueStore;
+
+mod exchange;
 mod parser;
 mod response;
 
-pub async fn handle<T: exchange::KeyValueStore>(
+pub async fn handle<T: KeyValueStore>(
     prompt: String,
     _prompter: String,
     store: &mut T,
@@ -71,7 +73,7 @@ pub async fn handle<T: exchange::KeyValueStore>(
 }
 
 #[cfg(not(test))]
-async fn create<T: exchange::KeyValueStore>(
+async fn create<T: KeyValueStore>(
     message: String,
     store: &mut T,
 ) -> Result<String, exchange::CreateError> {
@@ -79,7 +81,7 @@ async fn create<T: exchange::KeyValueStore>(
 }
 
 #[cfg(not(test))]
-async fn find<T: exchange::KeyValueStore>(
+async fn find<T: KeyValueStore>(
     code: String,
     store: &mut T,
 ) -> Result<String, exchange::FindError> {
@@ -90,7 +92,7 @@ async fn find<T: exchange::KeyValueStore>(
 use wasmbus_rpc::actor::prelude::*;
 
 #[cfg(test)]
-async fn create<T: exchange::KeyValueStore>(
+async fn create<T: KeyValueStore>(
     message: String,
     _store: &mut T,
 ) -> Result<String, exchange::CreateError> {
@@ -105,7 +107,7 @@ async fn create<T: exchange::KeyValueStore>(
 }
 
 #[cfg(test)]
-async fn find<T: exchange::KeyValueStore>(
+async fn find<T: KeyValueStore>(
     code: String,
     _store: &mut T,
 ) -> Result<String, exchange::FindError> {
@@ -121,8 +123,7 @@ async fn find<T: exchange::KeyValueStore>(
 
 #[cfg(test)]
 pub mod test {
-    use crate::responder::*;
-    use std::collections::HashMap;
+    use crate::{key_value_store::InMemory, responder::*};
 
     #[tokio::test]
     async fn create_valid() {
@@ -134,10 +135,6 @@ pub mod test {
         .await;
 
         assert_eq!(response, response::create_valid("validcode".to_string()))
-    }
-
-    fn mock_key_value_store() -> HashMap<String, String> {
-        HashMap::new()
     }
 
     #[tokio::test]
@@ -227,5 +224,9 @@ pub mod test {
                 "some invalid reason".to_string()
             )
         )
+    }
+
+    fn mock_key_value_store() -> InMemory {
+        InMemory::new()
     }
 }
