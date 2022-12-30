@@ -15,6 +15,8 @@ pub async fn handle<T: KeyValueStore>(
     let log_e = format!("prompter: {}, prompt: {}", prompter, prompt);
     #[cfg(target_arch = "wasm32")]
     log("debug", log_e).await.iter().next();
+    #[cfg(not(target_arch = "wasm32"))]
+    println!("{}", log_e);
 
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {

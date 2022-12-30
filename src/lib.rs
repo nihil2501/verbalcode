@@ -19,6 +19,8 @@ impl HttpServer for VerbalcodeActor {
         let log_e = format!("Request = {:?}", req);
         #[cfg(target_arch = "wasm32")]
         log("debug", log_e).await.iter().next();
+        #[cfg(not(target_arch = "wasm32"))]
+        println!("{}", log_e);
 
         handle_http_request(ctx, req).await
     }
@@ -57,6 +59,8 @@ async fn handle_http_request(
     let log_e = format!("Response = {:?}, Body = {}", resp, body);
     #[cfg(target_arch = "wasm32")]
     log("debug", log_e).await.iter().next();
+    #[cfg(not(target_arch = "wasm32"))]
+    println!("{}", log_e);
 
     Ok(resp)
 }

@@ -1,10 +1,14 @@
+#![allow(clippy::all)]
+
 #[cfg(test)]
 pub const CODES: &[&str] = &["hello", "goodbye"];
 
 // Taken from https://en.wiktionary.org/wiki/Appendix:Basic_English_word_list
 // "Things - 200 picturable words"
 #[cfg(not(test))]
-pub const CODES: &[&str] = &[
+pub const CODES: &[&str] = &
+// SEARCH_SCRIPT_BOUNDARY
+[
     "angle", "ant", "apple", "arch", "arm", "army", "baby", "bag", "ball",
     "band", "basin", "basket", "bath", "bed", "bee", "bell", "berry", "bird",
     "blade", "board", "boat", "bone", "book", "boot", "bottle", "box", "boy",
@@ -30,4 +34,7 @@ pub const CODES: &[&str] = &[
     "toe", "tongue", "tooth", "town", "train", "tray", "tree", "trousers",
     "umbrella", "wall", "watch", "wheel", "whip", "whistle", "window", "wing",
     "wire", "worm",
-];
+]
+// SEARCH_SCRIPT_BOUNDARY
+// ---------------------- used by `./phone_number_search/run.sh`
+;
