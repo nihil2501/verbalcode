@@ -4,8 +4,8 @@ use crate::key_value_store::KeyValueStore;
 use wasmcloud_interface_logging::log;
 
 mod exchange;
+mod messages;
 mod parser;
-mod response;
 
 pub async fn handle<T: KeyValueStore>(
     prompt: String,
@@ -27,16 +27,16 @@ pub async fn handle<T: KeyValueStore>(
                 match result {
                     // Create is valid, yielding back a code corresponding to
                     // the message.
-                    Ok(code) => response::create_valid(code),
+                    Ok(code) => messages::create_success(code),
 
                     Err(error) => match error {
                         // All code words are used up.
                         exchange::CreateError::OverCapacity => {
-                            response::create_over_capacity()
+                            messages::create_over_capacity()
                         }
                         // Unknown error.
                         exchange::CreateError::Unknown(_) => {
-                            response::create_unknown_error()
+                            messages::create_unknown_error()
                         }
                     },
                 }
@@ -48,16 +48,16 @@ pub async fn handle<T: KeyValueStore>(
                 match result {
                     // Code exists in the exchange, yielding back the
                     // corresponding message.
-                    Ok(message) => response::find_found(message),
+                    Ok(message) => messages::find_found(message),
 
                     Err(error) => match error {
                         // Code doesn't exist in the exchange.
                         exchange::FindError::NotFound => {
-                            response::find_not_found()
+                            messages::find_not_found()
                         }
                         // Unknown error.
                         exchange::FindError::Unknown(_) => {
-                            response::find_unknown_error()
+                            messages::find_unknown_error()
                         }
                     },
                 }
@@ -68,12 +68,12 @@ pub async fn handle<T: KeyValueStore>(
         Err(error) => match error {
             // Prompt is so malformed it fails to indicate any action.
             parser::PromptParseError::MalformedAction => {
-                response::prompt_malformed()
+                messages::prompt_malformed()
             }
 
             // Prompt indicates a create but message is too long or short.
             parser::PromptParseError::MessageInvalid(reason) => {
-                response::prompt_create_message_invalid(reason)
+                messages::prompt_create_message_invalid(reason)
             }
         },
     }
@@ -141,7 +141,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::create_valid("validcode".to_string()))
+        assert_eq!(response, messages::create_success("validcode".to_string()))
     }
 
     #[tokio::test]
@@ -153,7 +153,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::create_over_capacity())
+        assert_eq!(response, messages::create_over_capacity())
     }
 
     #[tokio::test]
@@ -165,7 +165,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::create_unknown_error())
+        assert_eq!(response, messages::create_unknown_error())
     }
 
     #[tokio::test]
@@ -177,7 +177,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::find_found("found message".to_string()))
+        assert_eq!(response, messages::find_found("found message".to_string()))
     }
 
     #[tokio::test]
@@ -189,7 +189,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::find_not_found())
+        assert_eq!(response, messages::find_not_found())
     }
 
     #[tokio::test]
@@ -201,7 +201,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::find_unknown_error())
+        assert_eq!(response, messages::find_unknown_error())
     }
 
     #[tokio::test]
@@ -213,7 +213,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, response::prompt_malformed());
+        assert_eq!(response, messages::prompt_malformed());
     }
 
     #[tokio::test]
@@ -227,7 +227,7 @@ pub mod test {
 
         assert_eq!(
             response,
-            response::prompt_create_message_invalid(
+            messages::prompt_create_message_invalid(
                 "some invalid reason".to_string()
             )
         )

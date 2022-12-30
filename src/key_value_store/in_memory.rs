@@ -1,6 +1,7 @@
 use super::KeyValueStore;
 use async_trait::async_trait;
 use std::collections::HashMap;
+// `Instant` won't work on wasm32.
 use tokio::time::{Duration, Instant};
 use wasmbus_rpc::actor::prelude::*;
 
