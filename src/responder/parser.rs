@@ -12,8 +12,8 @@ pub enum PromptParseError {
 }
 
 type PromptParseResult = result::Result<Action, PromptParseError>;
-const PROMPT_REGEX: &str = r"\A([a-zA-Z]+)(\s+.*)?\z";
-const CREATE_PROMPT_WORD: &str = "verbalcode";
+const PROMPT_REGEX: &str = r"\A([a-zA-Z]+)(\s+(?s:.)*)?\z";
+const CREATE_PROMPT_WORD: &str = "partyskunk";
 const MESSAGE_CHARACTER_LIMIT: usize = 140;
 const MESSAGE_INVALID_REASON_MESSAGE: &str =
     "Message must not be empty and must be less than 140 characters.";

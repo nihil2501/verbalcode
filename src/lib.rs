@@ -26,15 +26,15 @@ impl HttpServer for VerbalcodeActor {
     }
 }
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_qs as qs;
+use serde_urlencoded as urlencoded;
 
 use key_value_store::KeyValueStore;
 
 mod key_value_store;
 mod responder;
 mod twilio {
+    use serde::Deserialize;
+
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "PascalCase")]
     pub struct Payload {
@@ -47,7 +47,8 @@ async fn handle_http_request(
     ctx: &Context,
     req: &HttpRequest,
 ) -> RpcResult<HttpResponse> {
-    let payload: twilio::Payload = qs::from_bytes(req.body.as_slice()).unwrap();
+    let payload = &req.body.as_slice();
+    let payload: twilio::Payload = urlencoded::from_bytes(payload).unwrap();
     let mut store = new_store(ctx);
     let body = respond(payload.body, payload.from, &mut store).await;
 
@@ -96,10 +97,10 @@ fn new_store(_ctx: &Context) -> key_value_store::InMemory {
 #[cfg(test)]
 mod test {
     use crate::handle_http_request;
+    use serde_json as json;
     use std::fs;
     use wasmbus_rpc::actor::prelude::*;
     use wasmcloud_interface_httpserver::HttpRequest;
-    extern crate serde_json as json;
 
     #[tokio::test]
     async fn can_handle_http_request() {

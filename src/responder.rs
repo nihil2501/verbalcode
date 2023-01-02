@@ -137,7 +137,7 @@ pub mod test {
     #[tokio::test]
     async fn create_valid() {
         let response = handle(
-            "verbalcode valid message".to_string(),
+            "partyskunk valid message".to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )
@@ -149,7 +149,7 @@ pub mod test {
     #[tokio::test]
     async fn create_over_capacity() {
         let response = handle(
-            "verbalcode over capacity".to_string(),
+            "partyskunk over capacity".to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )
@@ -161,7 +161,7 @@ pub mod test {
     #[tokio::test]
     async fn create_unknown_error() {
         let response = handle(
-            "verbalcode unknown error".to_string(),
+            "partyskunk unknown error".to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )
@@ -209,7 +209,7 @@ pub mod test {
     #[tokio::test]
     async fn prompt_malformed() {
         let response = handle(
-            "verbalcode!".to_string(),
+            "partyskunk!".to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )
@@ -221,7 +221,7 @@ pub mod test {
     #[tokio::test]
     async fn prompt_create_message_invalid() {
         let response = handle(
-            "verbalcode".to_string(),
+            "partyskunk".to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )

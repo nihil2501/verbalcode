@@ -1,4 +1,4 @@
 curl -XPOST -H 'Content-Type: application/x-www-form-urlencoded' \
-    -d 'Body=verbalcode hello world&From=+14105551234' \
+    -d 'Body=partyskunk hello world&From=+14105551234' \
     'http://localhost:8080'
 

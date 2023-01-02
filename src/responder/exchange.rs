@@ -24,11 +24,11 @@ pub async fn find<T: KeyValueStore>(code: String, store: &mut T) -> FindResult {
 }
 
 mod codes;
-// `CODES` shouldn't change over time in order for `verbalcode:codes_index` to
+// `CODES` shouldn't change over time in order for `partyskunk:codes_index` to
 // remain coherent with respect to it.
 use codes::CODES;
 
-const CODES_INDEX_KEY: &str = "verbalcode:codes_index";
+const CODES_INDEX_KEY: &str = "partyskunk:codes_index";
 
 async fn generate_code<T: KeyValueStore>(store: &mut T) -> GenerateCodeResult {
     // Depends on atomic increment. Our relaxed strategy (one we still need
