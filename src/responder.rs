@@ -98,6 +98,8 @@ async fn find<T: KeyValueStore>(
 }
 
 #[cfg(test)]
+use indoc::indoc;
+#[cfg(test)]
 use wasmbus_rpc::actor::prelude::*;
 
 #[cfg(test)]
@@ -107,6 +109,9 @@ async fn create<T: KeyValueStore>(
 ) -> Result<String, exchange::CreateError> {
     match message.as_str() {
         "valid message" => Ok("validcode".to_string()),
+        indoc! {"
+            valid message
+            spanning lines"} => Ok("validcode".to_string()),
         "over capacity" => Err(exchange::CreateError::OverCapacity),
         "unknown error" => Err(exchange::CreateError::Unknown(
             RpcError::Other("unknown".to_string()),
@@ -138,6 +143,22 @@ pub mod test {
     async fn create_valid() {
         let response = handle(
             "partyskunk valid message".to_string(),
+            "prompter".to_string(),
+            &mut mock_key_value_store(),
+        )
+        .await;
+
+        assert_eq!(response, messages::create_success("validcode".to_string()))
+    }
+
+    #[tokio::test]
+    async fn create_valid_multiline() {
+        let response = handle(
+            indoc! {"
+                partyskunk valid message
+                spanning lines
+            "}
+            .to_string(),
             "prompter".to_string(),
             &mut mock_key_value_store(),
         )
