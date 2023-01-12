@@ -39,3 +39,8 @@ __pycache__/
 **node_modules
 **package-lock.json
 
+phone_number_search/attempt_one/candidates
+phone_number_search/attempt_one/results
+phone_number_search/attempt_two/candidates
+phone_number_search/attempt_two/lexicon
+phone_number_search/attempt_two/results
