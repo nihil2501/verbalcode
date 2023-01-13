@@ -1,8 +1,6 @@
 use crate::key_value_store::KeyValueStore;
 
-#[cfg(target_arch = "wasm32")]
-use wasmcloud_interface_logging::log;
-
+use crate::logger;
 mod exchange;
 mod messages;
 mod parser;
@@ -12,11 +10,7 @@ pub async fn handle<T: KeyValueStore>(
     prompter: String,
     store: &mut T,
 ) -> String {
-    let log_e = format!("prompter: {}, prompt: {}", prompter, prompt);
-    #[cfg(target_arch = "wasm32")]
-    log("debug", log_e).await.iter().next();
-    #[cfg(not(target_arch = "wasm32"))]
-    println!("{}", log_e);
+    logger::log(format!("prompter: {}, prompt: {}", prompter, prompt)).await;
 
     // Prompt can either parse successfully or not.
     match parser::parse(prompt) {
@@ -34,7 +28,7 @@ pub async fn handle<T: KeyValueStore>(
                     Err(error) => match error {
                         // All code words are used up.
                         exchange::CreateError::OverCapacity => {
-                            messages::create_over_capacity()
+                            messages::create_over_capacity_error()
                         }
                         // Unknown error.
                         exchange::CreateError::Unknown(_) => {
@@ -50,12 +44,12 @@ pub async fn handle<T: KeyValueStore>(
                 match result {
                     // Code exists in the exchange, yielding back the
                     // corresponding message.
-                    Ok(message) => messages::find_found(message),
+                    Ok(message) => messages::find_success(message),
 
                     Err(error) => match error {
                         // Code doesn't exist in the exchange.
                         exchange::FindError::NotFound => {
-                            messages::find_not_found()
+                            messages::find_not_found_error()
                         }
                         // Unknown error.
                         exchange::FindError::Unknown(_) => {
@@ -70,12 +64,12 @@ pub async fn handle<T: KeyValueStore>(
         Err(error) => match error {
             // Prompt is so malformed it fails to indicate any action.
             parser::PromptParseError::MalformedAction => {
-                messages::prompt_malformed()
+                messages::prompt_malformed_error()
             }
 
             // Prompt indicates a create but message is too long or short.
             parser::PromptParseError::MessageInvalid(reason) => {
-                messages::prompt_create_message_invalid(reason)
+                messages::prompt_create_message_invalid_error(reason)
             }
         },
     }
@@ -140,7 +134,7 @@ pub mod test {
     use crate::{key_value_store, responder::*};
 
     #[tokio::test]
-    async fn create_valid() {
+    async fn create_success() {
         let response = handle(
             "partyskunk valid message".to_string(),
             "prompter".to_string(),
@@ -152,7 +146,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn create_valid_multiline() {
+    async fn create_success_multiline() {
         let response = handle(
             indoc! {"
                 partyskunk valid message
@@ -168,7 +162,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn create_over_capacity() {
+    async fn create_over_capacity_error() {
         let response = handle(
             "partyskunk over capacity".to_string(),
             "prompter".to_string(),
@@ -176,7 +170,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, messages::create_over_capacity())
+        assert_eq!(response, messages::create_over_capacity_error())
     }
 
     #[tokio::test]
@@ -192,7 +186,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn find_found() {
+    async fn find_success() {
         let response = handle(
             "foundcode".to_string(),
             "prompter".to_string(),
@@ -200,11 +194,14 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, messages::find_found("found message".to_string()))
+        assert_eq!(
+            response,
+            messages::find_success("found message".to_string())
+        )
     }
 
     #[tokio::test]
-    async fn find_not_found() {
+    async fn find_not_found_error() {
         let response = handle(
             "notfoundcode".to_string(),
             "prompter".to_string(),
@@ -212,7 +209,7 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, messages::find_not_found())
+        assert_eq!(response, messages::find_not_found_error())
     }
 
     #[tokio::test]
@@ -236,11 +233,11 @@ pub mod test {
         )
         .await;
 
-        assert_eq!(response, messages::prompt_malformed());
+        assert_eq!(response, messages::prompt_malformed_error());
     }
 
     #[tokio::test]
-    async fn prompt_create_message_invalid() {
+    async fn prompt_create_message_invalid_error() {
         let response = handle(
             "partyskunk".to_string(),
             "prompter".to_string(),
@@ -250,7 +247,7 @@ pub mod test {
 
         assert_eq!(
             response,
-            messages::prompt_create_message_invalid(
+            messages::prompt_create_message_invalid_error(
                 "some invalid reason".to_string()
             )
         )

@@ -34,7 +34,7 @@ pub fn find_unknown_error() -> String {
 static CREATE_OVER_CAPACITY_ERROR_MESSAGE: &str =
     "Whoops! The code word database is full. Try again later.";
 
-pub fn create_over_capacity() -> String {
+pub fn create_over_capacity_error() -> String {
     CREATE_OVER_CAPACITY_ERROR_MESSAGE.to_string()
 }
 
@@ -51,7 +51,7 @@ static CREATE_HOW_TO_MESSAGE: &str = indoc! {"
 static FIND_HOW_TO_MESSAGE: &str =
     "If someone gave you a code word, send us a text with just that code word.";
 
-pub fn find_not_found() -> String {
+pub fn find_not_found_error() -> String {
     format!(
         "{}\n\n{}\n\n{}",
         FIND_NOT_FOUND_ERROR_MESSAGE,
@@ -60,14 +60,14 @@ pub fn find_not_found() -> String {
     )
 }
 
-pub fn prompt_malformed() -> String {
+pub fn prompt_malformed_error() -> String {
     format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, FIND_HOW_TO_MESSAGE)
 }
 
-pub fn prompt_create_message_invalid(_reason: String) -> String {
+pub fn prompt_create_message_invalid_error(_reason: String) -> String {
     format!("{}\n\n{}", CREATE_HOW_TO_MESSAGE, FIND_HOW_TO_MESSAGE)
 }
 
-pub fn find_found(message: String) -> String {
+pub fn find_success(message: String) -> String {
     format!("{}\n\n{}", message, CREATE_HOW_TO_MESSAGE)
 }
