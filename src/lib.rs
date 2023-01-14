@@ -98,7 +98,7 @@ mod test {
 
     #[tokio::test]
     async fn can_handle_http_request() {
-        let req = fs::read_to_string("fixtures/request_1.json").unwrap();
+        let req = fs::read_to_string("test/fixtures/request_1.json").unwrap();
         let req: HttpRequest = json::from_str(&req).unwrap();
         let ctx: Context = Default::default();
         let resp = handle_http_request(&ctx, &req).await.unwrap();
