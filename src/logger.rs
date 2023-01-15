@@ -1,6 +1,3 @@
-#[cfg(target_arch = "wasm32")]
-use wasmcloud_interface_logging;
-
 // Maybe can remove last remaining bit of boilerplate by making this a macro.
 // Call sites are using `format!` and `await` each time.
 pub async fn log(entry: String) {

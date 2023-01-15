@@ -53,7 +53,7 @@ async fn handle_http_request(
 
     resp.header
         .entry("content-type".to_string())
-        .or_insert(vec!["text/plain".to_string()]);
+        .or_insert_with(|| vec!["text/plain".to_string()]);
 
     logger::log(format!("Response = {:?}, Body = {}", resp, body)).await;
 
